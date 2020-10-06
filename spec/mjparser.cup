@@ -1,0 +1,366 @@
+
+
+package rs.ac.bg.etf.pp1;
+
+import java_cup.runtime.*;
+import org.apache.log4j.*;
+import rs.ac.bg.etf.pp1.ast.*;
+
+parser code {:
+
+    boolean errorDetected;
+	Logger log = Logger.getLogger(getClass());
+
+
+    // slede redefinisani metodi za prijavu gresaka radi izmene teksta poruke
+
+    public void report_fatal_error(String message, Object info) throws java.lang.Exception {
+      done_parsing();
+      report_error(message, info);
+    }
+
+    public void syntax_error(Symbol cur_token) {
+        report_error("\nSintaksna greska", cur_token);
+    }
+
+    public void unrecovered_syntax_error(Symbol cur_token) throws java.lang.Exception {
+        report_fatal_error("Fatalna greska, parsiranje se ne moze nastaviti", cur_token);
+    }
+
+    public void report_error(String message, Object info) {
+        errorDetected = true;
+    	StringBuilder msg = new StringBuilder(message);
+    	if (info instanceof Symbol)
+            msg.append (" na liniji ").append(((Symbol)info).left);
+        log.error(msg.toString());
+    }
+
+
+:}
+
+init with {:
+	errorDetected = false;
+:}
+
+scan with {:
+	Symbol s = this.getScanner().next_token();
+	if (s != null && s.value != null)
+		log.info(s.toString() + " " + s.value.toString());
+	return s;
+:}
+
+
+terminal PROG, RETURN, PRINT, READ, NEW, VOID, CONST;
+terminal SEMI, COMMA, COLON, DOT;
+terminal Integer NUMBER;
+terminal Character CHAR;
+terminal String STRING;
+terminal String BOOL;
+terminal EQUAL, PLUSEQUAL, MINUSEQUAL, MULEQUAL, DIVEQUAL, MODEQUAL;
+terminal LBRACE, RBRACE, LPAREN, RPAREN, LSQUARE, RSQUARE;
+terminal PLUS, DIV, MINUS, MOD, MUL, INC, DEC;
+terminal FOR, FOREACH, CONTINUE, BREAK;
+terminal PUBLIC, PROTECTED, PRIVATE;
+terminal ABSTRACT, CLASS, EXTENDS;
+terminal IF, EQ, NEQ, GT, GTE, LT, LTE, AND, OR;
+terminal ELSE;
+
+terminal MAX;
+terminal HASH;
+
+non terminal  ConstAssignList, GlobalConstDeclaration;
+
+non terminal Program;
+non terminal rs.etf.pp1.symboltable.concepts.Obj ProgramName, Designator, DesignatorArrayHelper, PrepareDesignatorForCombined;
+non terminal rs.etf.pp1.symboltable.concepts.Obj Type, TypeOrVoid;
+non terminal rs.etf.pp1.symboltable.concepts.Obj MethodDeclaration, MethodSignature;
+non terminal rs.etf.pp1.symboltable.concepts.Obj Parameter, LocalVarDecl;
+non terminal rs.etf.pp1.symboltable.concepts.Obj FunctionCall, ConstGroup;
+non terminal rs.etf.pp1.symboltable.concepts.Obj Var, ConstAssign;
+
+non terminal UnloadDesignator;
+
+non terminal rs.etf.pp1.symboltable.concepts.Obj AssingOp, Expr, Term, Factor;
+non terminal rs.etf.pp1.symboltable.concepts.Struct Condition, ConditionTerm, ConditionFact, OptionalForCondition;
+
+non terminal Mulop, Addop;
+non terminal AddopRight, AddopLeft, MulopRight, MulopLeft;
+non terminal LoadDesignator, LoadDesignator1;
+
+non terminal MethodDeclarationList;
+non terminal MethodStartFunctionParameters;
+non terminal FunctionParameters, ParameterList;
+non terminal LocalVarDeclarations, LocalVarList;
+non terminal StartOfConstAssign, EndOfConstAssign;
+
+non terminal StatementList, Statement;
+non terminal OptionalElse, ElseKeyword, OrKeyword, AndKeyword, FinalizeCondition, PrepareCondition, StatementAdr;
+
+non terminal VarDeclarationList, VarDeclarationListByType, VarDeclaration;
+non terminal TypeDeclarationList, TypeDelcaration, DeclarationType;
+non terminal VarList;
+non terminal AccessModifier, OptionalExtends, OptionalAbstract;
+
+non terminal ClassDeclaration, ClassBody;
+
+non terminal DesignatorStatement, Negative;
+non terminal AddopTermList, MulopTermList;
+non terminal EndExprStack, EndTermStack;
+
+non terminal GlobalDeclarationList, GlobalDeclaration, GlobalVarDeclaration, GlobalClassDeclaration;
+
+non terminal ActPars, ActParsStart, ActParsList, ActPar;
+non terminal Relop;
+
+
+non terminal rs.etf.pp1.symboltable.concepts.Obj ForeachIterator, ForeachHiddenIterator, ForeachArrayDesignator;
+non terminal ForeachBegin, ForeachStart, ForeachEnd, ForeachExit, ColonKeyword;
+
+non terminal OptionalForDesignatorStatement;
+non terminal ForStart, ForEnd, ForExit, ForRepeatCondition, ForStatements, JumpToDesignatorStatement2, JumpToEnd, DesignatorJumpBack, JumpToStatements;
+
+non terminal SemiCrazyIdea;
+
+non terminal LocalVarDeclListing, LocalvarListing;
+
+precedence left ELSE;
+
+
+Program ::= (Program) PROG ProgramName GlobalDeclarationList LBRACE MethodDeclarationList RBRACE;
+ProgramName ::= (ProgramName) STRING:programName;
+
+GlobalDeclarationList ::= (GlobalDeclarationListing) GlobalDeclarationList GlobalDeclaration
+                          |
+                          (GlobalDeclarationListEmpty) /* Epsilon */
+                          ;
+
+GlobalDeclaration ::= (GlobalDeclartionVars) TypeDeclarationList
+                    | (GlobalDeclartionClasses) GlobalClassDeclaration
+                    | (GlovalDeclarationConst) GlobalConstDeclaration
+                    ;
+
+GlobalClassDeclaration ::= (GlobalClassDeclaration) AccessModifier OptionalAbstract CLASS STRING OptionalExtends LBRACE ClassBody RBRACE;
+
+GlobalConstDeclaration ::= (GlobalConstDeclaration) StartOfConstAssign Type ConstAssignList EndOfConstAssign SEMI;
+StartOfConstAssign ::= (StartOfConstAssign) CONST;
+EndOfConstAssign ::= (EndOfConstAssign) /* Epsilon */;
+ConstAssignList ::= (ConstAssignListing) ConstAssignList COMMA ConstAssign
+                    |
+                    (ConstAssignSingle) ConstAssign
+                    ;
+
+ConstAssign ::= (ConstVarAssing) STRING:name EQUAL ConstGroup;
+ConstGroup ::= (ConstBool) BOOL | (ConstNumber) NUMBER | (ConstChar) CHAR;
+
+TypeDeclarationList ::= (TypeVarDeclaration) Type VarList SEMI;
+
+VarList ::= (VarListing) VarList COMMA Var
+            |
+            (VarListSingle) Var
+            ;
+Var::= (VarArray) STRING LSQUARE RSQUARE | (VarSingle) STRING;
+
+
+AccessModifier ::= (AccessPublic) PUBLIC | (AccessProtected) PROTECTED | (AccessPrivate) PRIVATE | (AccessPackage) /* Epsilon */;
+OptionalAbstract ::= (AbstractTrue) ABSTRACT | (AbstractFalse) /* Epsilon */;
+OptionalExtends ::= (ExtendsTrue) EXTENDS STRING:ClassName | (ExtendsFalse)  /* Epsilon */;
+TypeOrVoid ::= (TypeStringAny) Type | (TypeVoid) VOID:typeVoid;
+Type ::= (TypeString) STRING:typeName;
+
+
+
+MethodDeclarationList ::= (MethodDeclarationListing) MethodDeclarationList MethodDeclaration | (MethodDeclarationListEmpty) /* Epsilon */;
+
+MethodDeclaration ::= (MethodDeclaration) MethodSignature LocalVarDeclarations LBRACE StatementList RBRACE;
+MethodSignature ::= (MethodSignature) TypeOrVoid:returnType STRING:methodName MethodStartFunctionParameters LPAREN FunctionParameters RPAREN;
+
+MethodStartFunctionParameters ::= (MethodStartFunctionParameters) /* Epsilon */;
+
+FunctionParameters ::= (FunctionParametersList) ParameterList | (FunctionParametersEmpty) /* Epsilon */;
+ParameterList ::= (ParameterListing) ParameterList COMMA Parameter | (ParameterDecl) Parameter;
+Parameter ::= (ParameterSingle) Type STRING:psingle
+            |
+            (ParameterArr) Type STRING:parr LSQUARE RSQUARE
+            |
+            error:l
+             {: parser.report_error("Formalni parametar: Izvrsen oporavak do ',' ili kraja " + lleft, null); :}
+            ;
+
+LocalVarDeclarations ::= (LocalVarDeclList) LocalVarList | (LocalVarDeclEmpty)  /* Epsilon */;
+LocalVarList ::= (LocalVarListList) LocalVarList LocalvarListing | (LocalVarSingle) LocalvarListing ;
+LocalvarListing ::= (LocalVarListingList) Type LocalVarDeclListing SEMI ;
+LocalVarDeclListing ::= (LocalVarDeclListingList) LocalVarDeclListing COMMA LocalVarDecl | (LocalVarDeclListingSingle) LocalVarDecl;
+LocalVarDecl ::=(LocalVarDeclSinge) STRING:Var
+                |
+                (LocalVarDeclArray) STRING:Var LSQUARE RSQUARE
+                |
+                error SEMI:l
+                {: parser.report_error("Lokalna promenljiva: Izvrsen oporavak do ; " + lleft, null); :}
+                ;
+// todo: untested
+//LocalVarDeclarations ::= (LocalVarDeclList) LocalVarList | (LocalVarDeclEmpty)  /* Epsilon */;
+//LocalVarList ::= (LocalVarListList) LocalVarList LocalvarListing | (LocalVarSingle) LocalvarListing ;
+//LocalvarListing ::= (LocalVarListingList) Type LocalVarDeclListing SEMI ;
+//LocalVarDeclListing ::= (LocalVarDeclListingList) LocalVarDeclListing COMMA LocalVarDecl | (LocalVarDeclListingSingle) LocalVarDecl;
+//LocalVarDecl ::=(LocalVarDeclSinge) STRING:Var
+//                |
+//                (LocalVarDeclArray) STRING:Var LSQUARE RSQUARE
+//                |
+//                error SEMI:l
+//                {: parser.report_error("Lokalna promenljiva: Izvrsen oporavak do ; " + lleft, null); :}
+//                ;
+
+// TODO: Class Body, errors
+ClassBody ::= (ClassBodyStatements) STRING | (ClassBodyEmpty) /* Epsilon */;
+
+
+StatementList ::= (StatementListing) StatementList Statement | (StatementEmpty) /* Epsilon */;
+
+Statement ::= (StatementDesignatorStatement) DesignatorStatement SemiCrazyIdea
+            |
+            (StatementRead) READ LPAREN Designator RPAREN SemiCrazyIdea
+            |
+            (StatementPrintExpr) PRINT LPAREN Expr RPAREN SemiCrazyIdea
+            |
+            (StatementPrintExprNumber) PRINT LPAREN Expr COMMA NUMBER RPAREN SemiCrazyIdea
+            |
+            (StatementReturnExpr) RETURN Expr SemiCrazyIdea
+            |
+            (StatementReturn) RETURN SemiCrazyIdea
+            |
+            (StatementContinue) CONTINUE SemiCrazyIdea
+            |
+            (StatementBreak) BREAK SemiCrazyIdea
+            |
+            (StatementBody) LBRACE StatementList RBRACE
+            |
+            (StatementIf) IF LPAREN PrepareCondition Condition FinalizeCondition RPAREN StatementAdr Statement OptionalElse
+            |
+            (StatementFor) FOR ForStart LPAREN OptionalForDesignatorStatement  SemiCrazyIdea OptionalForCondition SemiCrazyIdea DesignatorJumpBack OptionalForDesignatorStatement JumpToEnd RPAREN ForStatements JumpToDesignatorStatement2 ForEnd ForExit
+            |
+            (StatementForEach) FOREACH ForeachStart LPAREN ForeachIterator ForeachHiddenIterator ColonKeyword ForeachArrayDesignator RPAREN ForeachBegin Statement ForeachEnd ForeachExit
+            |
+            error SEMI:l
+            {: parser.report_error("Izvrsen oporavak do ; " + lleft, null); :}
+            ;
+
+SemiCrazyIdea ::= (SemiCrazyIdea) EndExprStack SEMI;
+
+PrepareCondition ::= (PrepareCondition) /* Epsilon */;
+StatementAdr ::= (StatementAdr) /* Epsilon */;
+OptionalElse ::= (OptionalElseTrue) ElseKeyword Statement
+                |
+                (OptionalElseFalse) /* Epsilon */
+                ;
+FinalizeCondition ::= (FinalizeCondition) /* Epsilon */;
+ElseKeyword ::= (ElseKeyword) ELSE;
+
+ForeachStart ::= (ForeachStart) /* Epsilonn */;
+ForeachIterator ::= (ForeachIterator) STRING:ident;
+ForeachHiddenIterator ::= (ForeachHiddenIterator) /* Epsilon */;
+ColonKeyword ::= (ColonKeyword) COLON;
+ForeachArrayDesignator ::= (ForeachArrayDesignator) Designator;
+ForeachBegin ::= (ForeachBegin) /* Epsilon */;
+ForeachEnd ::= (ForeachEnd) /* Epsilon */;
+ForeachExit ::= (ForeachExit) /* Epsilon */;
+
+ForStart ::= (ForStart) /* Epsilon */;
+ForEnd ::= (ForEnd) /* Epsilon */;
+DesignatorJumpBack ::= (DesignatorJumpBack) /* Epsilon */;
+JumpToEnd ::= (JumpToEnd) /* Epsilon */;
+JumpToDesignatorStatement2 ::= (JumpToDesignatorStatement2) /* Epsilon */;
+ForExit ::= (ForExit) /* Epsilon */;
+ForRepeatCondition ::= (ForRepeatCondition) /* Epsilon */;
+ForStatements ::= (ForStatements) StatementAdr Statement;
+OptionalForDesignatorStatement ::= (ForDesignatorStatement) DesignatorStatement | (ForDesignatorStatementEmpty) /* Epsilon */;
+OptionalForCondition ::= (ForCondition) ForRepeatCondition PrepareCondition Condition FinalizeCondition JumpToStatements
+                        |
+                         (ForConditionEmpty) ForRepeatCondition
+                         |
+                         (ForConditionError) error:l
+                         {: parser.report_error("Error u conditionu for petlje. Oporavak do ;" + lleft, null); :}
+                         ;
+
+JumpToStatements ::= (JumpToStatements) /* Epsilon */;
+
+DesignatorStatement ::= (DesignatorStatementAssignOpExpr) Designator AssingOp
+                        |
+                        (DesignatorStatementIncrement) Designator INC
+                        |
+                        (DesignatorStatementDecrement) Designator DEC
+                        |
+                        (DesignatorStatementFunCallPars) FunctionCall
+                        ;
+// EndExprStack at the end each in assignop
+AssingOp ::= (AssignEqual) EQUAL Expr
+            |
+            (AssignAddopRight) LoadDesignator1 AddopRight Expr
+            |
+            (AssignMulopRight) LoadDesignator1 MulopRight Expr
+            ;
+
+PrepareDesignatorForCombined ::= (PrepareDesignatorForCombined) Designator;
+LoadDesignator ::= (LoadDesignator) /* Epsilonn */;
+UnloadDesignator ::= (UnloadDesignator) /* Epsilonn */;
+LoadDesignator1 ::= (LoadDesignator1) /* Epsilonn */;
+
+Addop ::= (Addop_AddopLeft) AddopLeft | (Addop_AddopRight)  AddopRight;
+Mulop ::= (Mulop_MulopLeft) MulopLeft | (Mulop_MulopRight) MulopRight ;
+
+AddopLeft ::= (AddopLeftPlus) PLUS | (AddopLeftMinus) MINUS;
+AddopRight ::= (AddopRightPlusEqual) PLUSEQUAL | (AddopRightMinusEqual) MINUSEQUAL;
+MulopLeft ::= (MulopLeftMul) MUL | (MulopLeftDiv) DIV | (MulopLeftMod) MOD;
+MulopRight ::= (MulopRightMulEqual) MULEQUAL | (MulopRightDivEqual) DIVEQUAL | (MulopRightModEqual) MODEQUAL;
+
+Designator ::=  (DesignatorSingle) STRING:name
+                |
+                (DesignatorArray)  DesignatorArrayHelper LSQUARE Expr:e RSQUARE
+                |
+                (DesignatorMember) Designator DOT STRING:ident
+                ;
+DesignatorArrayHelper::= (DesignatorArrayHelper) Designator;
+Negative ::= (NegativeTrue) MINUS | (NegativeFalse) /* Epsilon */;
+
+Expr ::= (ExprTerm) Negative Term
+        |
+        (ExprTermAddOpTerm) Expr LoadDesignator1 Addop Term
+        |
+        (ExprMaxArray) MAX Term
+        |
+        (ExprGetCounter) Expr:array HASH Term:max
+        ;
+
+
+
+Term ::= (TermFactor) Factor | (TermMulOpFactor) Term LoadDesignator1 Mulop Factor;
+EndExprStack ::= (EndExprStack) /* Epsilon */;
+EndTermStack ::= (EndTermStack) /* Epsilon */;
+Factor ::=  (FactorConst) ConstGroup
+            |
+            (FactorParenExpr) LPAREN Expr RPAREN
+            |
+            (FactorNewType) NEW Type
+            |
+            (FactorNewTypeArray) NEW Type LSQUARE Expr RSQUARE
+            |
+            (FactorDesignator) Designator
+            |
+            (FactorFunCallPars) FunctionCall
+            ;
+
+FunctionCall ::= (FunCall) Designator LPAREN ActParsStart ActPars RPAREN;
+
+ActPars ::= (ActParsListing) ActParsList | (ActParsEmpty) /* Epsilon */;
+ActParsList ::= (ParList) ActParsList COMMA ActPar | (ParSingle) ActPar;
+ActPar ::= (ActPar) Expr;
+ActParsStart ::= (ActParsStart) /* Epsilon */;
+
+Condition ::= (ConditionList) Condition OrKeyword ConditionTerm | (ConditionSingle) ConditionTerm;
+OrKeyword ::= (OrKeyword) OR;
+ConditionTerm ::= (ConditionTermList) ConditionTerm AndKeyword ConditionFact | (ConditionTermSingle) ConditionFact;
+AndKeyword ::= (AndKeyword) AND;
+ConditionFact ::= (ConditionFactExpr) Expr | (ConditionFactExprOpExpr) Expr:firstExpr Relop Expr:secondExpr;
+Relop ::= (RelOpEq) EQ | (RelOpNeq) NEQ | (RelOpGt) GT | (RelOpGte) GTE | (RelOpLt) LT | (RelOpLte) LTE;
+
+
+
