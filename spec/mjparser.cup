@@ -12,6 +12,7 @@ parser code {:
 	Logger log = Logger.getLogger(getClass());
 
 
+    // todo critical
     // slede redefinisani metodi za prijavu gresaka radi izmene teksta poruke
 
     public void report_fatal_error(String message, Object info) throws java.lang.Exception {

@@ -20,8 +20,8 @@ config/
 dokumentacija.docx
 logs/
 src/ast/
-test/Test301.mj
-test/Test302.mj
+test/TestA.mj
+test/TestB.mj
 test/additional_tests/
 test/program.mj
 test/program.obj
