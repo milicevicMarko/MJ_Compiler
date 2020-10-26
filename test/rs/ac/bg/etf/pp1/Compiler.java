@@ -25,7 +25,9 @@ public class Compiler {
 
 		Reader br = null;
 		try {
-			File sourceCode = new File("test/program3.mj");
+			// String pathname = "test/program3.mj";
+			String pathname = "test/" + args[0];
+			File sourceCode = new File(pathname);
 			log.info("Compiling source file: " + sourceCode.getAbsolutePath());
 
 			br = new BufferedReader(new FileReader(sourceCode));
@@ -33,16 +35,14 @@ public class Compiler {
 
 			log.info("======================================	Lexer	======================================");
 			MJParser p = new MJParser(lexer);
-			Symbol s = p.parse();  //pocetak parsiranja
+			Symbol s = p.parse();
 
 			log.info("======================================	Parser	======================================");
 			Program prog = (Program)(s.value);
 			Tab.init();
-			// ispis sintaksnog stabla
 			log.info(prog.toString(""));
-			log.info("======================================	Semantic		======================================");
 
-			// ispis prepoznatih programskih konstrukcija
+			log.info("======================================	Semantic		======================================");
 			SemanticAnalyzer sp = new SemanticAnalyzer();
 			prog.traverseBottomUp(sp);
 
@@ -69,7 +69,7 @@ public class Compiler {
                 Code.dataSize = sp.getNumberOfVars();
                 Code.mainPc = codeGenerator.getMainPc();
                 Code.write(new FileOutputStream(objFile));
-                log.info("Parsiranje zavrseno!");
+                log.info("Done...");
             }
 		}
 		finally {

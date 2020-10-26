@@ -71,7 +71,7 @@
 
     <target name="runObj" depends="disasm">
         <java classname="rs.etf.pp1.mj.runtime.Run">
-            <arg value="-debug"/>
+<!--            <arg value="-debug"/>-->
 
             <arg value="test\program.obj"/>
             <redirector input="test/program.in"/>
@@ -81,8 +81,3 @@
         </java>
     </target>
 </project>
-
-<!--
-    Debug run:
-    <arg value="-debug"/>
--->
