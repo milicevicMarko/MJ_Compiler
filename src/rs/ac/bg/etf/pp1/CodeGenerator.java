@@ -287,22 +287,33 @@ public class CodeGenerator extends VisitorAdaptor {
         }
     }
 
-    private void putAddopLeft(Addop_AddopLeft addop_addopLeft) {
+    private int getAddopLeft(Addop_AddopLeft addop_addopLeft) {
         if (addop_addopLeft.getAddopLeft().getClass() == AddopLeftPlus.class) {
-            Code.put(Code.add);
+            return Code.add;
         } else {
-            Code.put(Code.sub);
+            return Code.sub;
         }
     }
 
-    private void putMullopLeft(Mulop_MulopLeft mulopLeft) {
+    private int getMullopLeft(Mulop_MulopLeft mulopLeft) {
         if (mulopLeft.getMulopLeft().getClass() == MulopLeftMul.class) {
             Code.put(Code.mul);
+            return Code.mul;
         } else if (mulopLeft.getMulopLeft().getClass() == MulopLeftDiv.class) {
-            Code.put(Code.div);
+            return Code.div;
         } else {
-            Code.put(Code.rem);
+            return Code.rem;
         }
+    }
+
+    private void putAddopLeft(Addop_AddopLeft addop_addopLeft) {
+        int codeOp = getAddopLeft(addop_addopLeft);
+        Code.put(codeOp);
+    }
+
+    private void putMullopLeft(Mulop_MulopLeft mulopLeft) {
+        int codeOp = getMullopLeft(mulopLeft);
+        Code.put(codeOp);
     }
 
     @Override
@@ -532,6 +543,8 @@ public class CodeGenerator extends VisitorAdaptor {
 
     // FOR
 
+    private final Stack<Integer> forJumpToEnd = new Stack<>();
+
     @Override
     public void visit(ForStart forStart) {
         breakFixup.push(new ArrayList<>());
@@ -577,7 +590,6 @@ public class CodeGenerator extends VisitorAdaptor {
         Code.putJump(pcDesignator2);
     }
 
-    private final Stack<Integer> forJumpToEnd = new Stack<>();
     @Override
     public void visit(JumpToEnd jumpToEnd) {
         Code.putJump(0);
@@ -683,7 +695,7 @@ public class CodeGenerator extends VisitorAdaptor {
     }
 
 
-    // stack helpers
+    // STACK HELPERS
     // todo: Use them in the whole class
 
     private final Stack<Integer> stack_if_adr = new Stack<>();
