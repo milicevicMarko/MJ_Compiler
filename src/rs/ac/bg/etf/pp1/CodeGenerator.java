@@ -220,6 +220,7 @@ public class CodeGenerator extends VisitorAdaptor {
         combinedOpStack.push(operationCode);
     }
 
+    // there was a mistake in the text of the problem, this was necessary
     // expr -> array index
     // designator -> regular or array
     // if expr == null -> designator is regular

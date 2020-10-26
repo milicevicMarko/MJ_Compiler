@@ -24,17 +24,17 @@ public class SemanticAnalyzer extends VisitorAdaptor {
     private boolean hasMain = false;
     private boolean isEqNeq = false;
 
-    private HashMap<Obj, ArrayList<Obj>> functionParameters = new HashMap<>();
+    private final HashMap<Obj, ArrayList<Obj>> functionParameters = new HashMap<>();
     private ArrayList<Obj> paramList = null;
 
-    private Stack<ArrayList<Struct>> functionArguments = new Stack<>();
+    private final Stack<ArrayList<Struct>> functionArguments = new Stack<>();
 
-    private Stack<Boolean> stackOfCombinedOperations = new Stack<>();
+    private final Stack<Boolean> stackOfCombinedOperations = new Stack<>();
 
-    private Stack<Obj> usedDesignator = new Stack<>();
+    private final Stack<Obj> usedDesignator = new Stack<>();
 
 
-    private Logger log = Logger.getLogger(getClass());
+    private final Logger log = Logger.getLogger(getClass());
 
     public SemanticAnalyzer() {
         initializeLen();
@@ -75,7 +75,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
         StringBuilder msg = new StringBuilder(message);
         int line = (info == null) ? 0 : info.getLine();
         if (line != 0)
-            msg.append(" na liniji ").append(line);
+            msg.append(" on line ").append(line);
         return msg;
     }
 
@@ -119,7 +119,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
     public void visit(ConstVarAssing constAssign) {
         Struct type = currentType.getType();
         Struct typeOfConst = constAssign.getConstGroup().obj.getType();
-        if (!typeIsPrimitive(type) || !typeIsPrimitive(typeOfConst)) {
+        if (isNotTypePrimitive(type) || isNotTypePrimitive(typeOfConst)) {
             report_error("Const must be of type Int, Char or Bool", constAssign);
             constAssign.obj = Tab.noObj;
         }
@@ -133,9 +133,9 @@ public class SemanticAnalyzer extends VisitorAdaptor {
         }
     }
 
-    private boolean typeIsPrimitive(Struct struct) {
+    private boolean isNotTypePrimitive(Struct struct) {
         int type = struct.getKind();
-        return type == Struct.Int || type == Struct.Char || type == Struct.Bool;
+        return type != Struct.Int && type != Struct.Char && type != Struct.Bool;
     }
 
     @Override
@@ -310,11 +310,6 @@ public class SemanticAnalyzer extends VisitorAdaptor {
     }
 
     @Override
-    public void visit(FactorNewType newType) {
-        System.err.println("Nema smisla ako ne pravis klase");
-    }
-
-    @Override
     public void visit(DesignatorArrayHelper designatorArrayHelper) {
         designatorArrayHelper.obj = designatorArrayHelper.getDesignator().obj;
     }
@@ -367,7 +362,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
     }
 
     private void canPostcrement(Obj obj, DesignatorStatement designator) {
-        if (!isVarFldElem(obj)) {
+        if (isNotVarFldElem(obj)) {
             report_error("Not a Var, a Fld or an Elem", designator);
         } else if (!obj.getType().compatibleWith(Tab.intType)) {
             report_error("Designator must be Int type", designator);
@@ -407,7 +402,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
             report_error("Incompatible types", exprTerm);
         }
         boolean isOpCombined = stackOfCombinedOperations.pop();
-        if (isOpCombined && !isVarFldElem(exprTerm.getExpr().obj)) {
+        if (isOpCombined && isNotVarFldElem(exprTerm.getExpr().obj)) {
             report_error("With combined arithmetic operators (+= / -=) only Vars, Elems and Flds can be used", exprTerm);
         }
         exprTerm.obj = exprTerm.getExpr().obj;
@@ -427,7 +422,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
             report_error("Second operand must be of type Int", termMulOpFactor);
         }
         boolean op = stackOfCombinedOperations.pop();
-        if (op && !isVarFldElem(termMulOpFactor.getTerm().obj)) {
+        if (op && isNotVarFldElem(termMulOpFactor.getTerm().obj)) {
             report_error("With combined arithmetic operators (*= / /= / %=) only Vars, Elems and Flds can be used", termMulOpFactor);
         }
         termMulOpFactor.obj = termMulOpFactor.getTerm().obj;
@@ -453,7 +448,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 
     @Override
     public void visit(DesignatorStatementAssignOpExpr designatorStatement) {
-        if (!isVarFldElem(designatorStatement.getDesignator().obj)) {
+        if (isNotVarFldElem(designatorStatement.getDesignator().obj)) {
             report_error("You can only assign to a Var, a Fld or an Elem", designatorStatement);
         }
         if (!designatorStatement.getDesignator().obj.getType().compatibleWith(designatorStatement.getAssingOp().obj.getType())) {
@@ -464,9 +459,9 @@ public class SemanticAnalyzer extends VisitorAdaptor {
         }
     }
 
-    private boolean isVarFldElem(Obj obj) {
+    private boolean isNotVarFldElem(Obj obj) {
         int kind = obj.getKind();
-        return kind == Obj.Var || kind == Obj.Fld || kind == Obj.Elem;
+        return kind != Obj.Var && kind != Obj.Fld && kind != Obj.Elem;
     }
 
     @Override
@@ -489,10 +484,10 @@ public class SemanticAnalyzer extends VisitorAdaptor {
     @Override
     public void visit(StatementRead statementRead) {
         Obj designator = statementRead.getDesignator().obj;
-        if (!isVarFldElem(designator)) {
+        if (isNotVarFldElem(designator)) {
             report_error("Read takes a Var, a Fld or an Elem", statementRead);
         }
-        if (!typeIsPrimitive(designator.getType())) {
+        if (isNotTypePrimitive(designator.getType())) {
             report_error("Designator must a primitive type: Int, Char or Bool", statementRead);
         }
     }
@@ -512,7 +507,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
             ArrayList<Struct> arguments = functionArguments.pop();
 
             if (paramsExpected.size() != arguments.size()) {
-                report_error("Incorrect number of aguments", funCall);
+                report_error("Incorrect number of arguments", funCall);
             } else {
                 for (int i = 0; i < paramsExpected.size(); i++) {
                     Struct expectedStruct = paramsExpected.get(i).getType();
@@ -521,7 +516,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
                         continue;
                     }
                     if ( !givenStruct.compatibleWith(expectedStruct)) {
-                        report_error("Type missmatch at argument ("+(i+1)+")", funCall);
+                        report_error("Type mismatch at argument ("+(i+1)+")", funCall);
                         return;
                     }
                 }
@@ -548,7 +543,6 @@ public class SemanticAnalyzer extends VisitorAdaptor {
         functionArguments.peek().add(actPar.getExpr().obj.getType());
     }
 
-    // error!
     @Override
     public void visit(ConditionFactExpr expr) {
         int typeFirst = expr.getExpr().obj.getType().getKind();
@@ -612,7 +606,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
             return;
         }
         if (typeFirst != typeSecond) {
-            report_error("Both expresions must be of same type to use AND", conditionTermList);
+            report_error("Both expressions must be of same type to use AND", conditionTermList);
             conditionTermList.struct = TabAdapter.noType;
         } else {
             conditionTermList.struct = TabAdapter.booleanType;
@@ -635,7 +629,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
             return;
         }
         if (typeFirst != typeSecond) {
-            report_error("Both expresions must be of same type to use OR", conditionList);
+            report_error("Both expressions must be of same type to use OR", conditionList);
             conditionList.struct = TabAdapter.noType;
 
         } else {
@@ -672,7 +666,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
         if (designator.getType().getKind() != Struct.Array) {
             report_error("Designator must be of Array type", statementForEach);
         } else if (!ident.equals(Tab.noObj) && !designator.getType().getElemType().equals(ident.getType())) {
-            report_error("Type mismatch: identificator and array", statementForEach);
+            report_error("Type mismatch: identifier and array", statementForEach);
         }
         loopLevel--;
     }
@@ -704,7 +698,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
     }
 
     private void typeCheckStatementPrintStruct( Struct exprStruct, Expr expr) {
-        if (!typeIsPrimitive(exprStruct)) {
+        if (isNotTypePrimitive(exprStruct)) {
             report_error("Print takes primitive types: Int, Char or Bool", expr);
         }
     }
