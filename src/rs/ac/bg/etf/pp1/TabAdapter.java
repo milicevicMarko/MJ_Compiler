@@ -1,7 +1,5 @@
 package rs.ac.bg.etf.pp1;
 
-import org.apache.log4j.Logger;
-import rs.ac.bg.etf.pp1.ast.SyntaxNode;
 import rs.etf.pp1.symboltable.Tab;
 import rs.etf.pp1.symboltable.concepts.Obj;
 import rs.etf.pp1.symboltable.concepts.Struct;
@@ -13,7 +11,6 @@ public class TabAdapter extends Tab {
 
     static {
         Tab.insert(Obj.Type, "bool", TabAdapter.booleanType);
-
     }
 
     static String getObjKind(int kind) {
@@ -51,17 +48,17 @@ public class TabAdapter extends Tab {
             String name = node.getName();
             int adr = node.getAdr();
             int level = node.getLevel();
-            System.out.println("Pretraga na " + line + "(" + name + "), nadjeno " + objKind + " "+ name + ": " + structType + ", " + adr + ", " + level );
+            System.out.println("Searching for " + line + "(" + name + "), found " + objKind + " "+ name + ": " + structType + ", " + adr + ", " + level );
         }
     }
 
     static void notFoundHandler(String name, int line) {
-        System.err.println("Greska na " + line + "(" + name + ") nije nadjeno");
+        System.err.println("Error on line " + line + "(" + name + ") not found");
         hasErrors++;
     }
 
     static void alreadyExistsHandler(String name, int line) {
-        System.err.println("Greska na " + line + "(" + name + ") vec postoji");
+        System.err.println("Error on line " + line + "(" + name + ") already exists");
         hasErrors++;
     }
 

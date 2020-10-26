@@ -258,8 +258,6 @@ public class CodeGenerator extends VisitorAdaptor {
         }
     }
 
-
-
     public void visit(TermMulOpFactor termMulOpFactor) {
         if (termMulOpFactor.getMulop() instanceof Mulop_MulopRight) {
             Code.put(Code.dup_x1);
