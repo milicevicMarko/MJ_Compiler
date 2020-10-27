@@ -296,7 +296,6 @@ public class CodeGenerator extends VisitorAdaptor {
 
     private int getMullopLeft(Mulop_MulopLeft mulopLeft) {
         if (mulopLeft.getMulopLeft().getClass() == MulopLeftMul.class) {
-            Code.put(Code.mul);
             return Code.mul;
         } else if (mulopLeft.getMulopLeft().getClass() == MulopLeftDiv.class) {
             return Code.div;
