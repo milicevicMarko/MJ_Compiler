@@ -10,11 +10,7 @@ dokumentacija.docx
 logs/
 src/ast/
 test/additional_tests/
-test/program.mj
 test/program.obj
-test/program1.mj
-test/program2.mj
-test/program3.mj
 .idea/vcs.xml
 *.class
 src/rs/ac/bg/etf/pp1/ast/
