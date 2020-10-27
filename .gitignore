@@ -1,17 +1,6 @@
 # Project exclude paths
 /out/
-.idea/.gitignore
-.idea/Cup_Editor.iml
-.idea/ant.xml
-.idea/checkstyle-idea.xml
-.idea/checkstyleidea-libs/
-.idea/dictionaries/
-.idea/encodings.xml
-.idea/libraries/
-.idea/misc.xml
-.idea/modules.xml
-.idea/uiDesigner.xml
-.idea/workspace.xml~e1c0dc7... added gitignore
+.idea/
 Cup_Editor.eml
 MJCompiler.eml
 MJCompiler.iml
@@ -32,3 +21,7 @@ test/program3.mj
 *.class
 src/rs/ac/bg/etf/pp1/ast/
 src/rs/ac/bg/etf/pp1/Yylex.java~
+src/rs/ac/bg/etf/pp1/MJParser.java
+src/rs/ac/bg/etf/pp1/sym.java
+src/rs/ac/bg/etf/pp1/Yylex.java
+spec/mjparser_astbuild.cup
