@@ -4,7 +4,6 @@ import rs.ac.bg.etf.pp1.ast.*;
 import rs.etf.pp1.mj.runtime.Code;
 import rs.etf.pp1.symboltable.Tab;
 import rs.etf.pp1.symboltable.concepts.Obj;
-import rs.etf.pp1.symboltable.concepts.Struct;
 
 import java.util.ArrayList;
 import java.util.Stack;
@@ -25,12 +24,16 @@ public class CodeGenerator extends VisitorAdaptor {
     private void initializeHelpMethods(String name, int size) {
         Obj ordMethod = Tab.find(name);
         ordMethod.setAdr(Code.pc);
-        Code.put(Code.enter);
-        Code.put(1);
-        Code.put(1);
+        enterMethod(1, 1);
         Code.put(size);
         Code.put(Code.exit);
         Code.put(Code.return_);
+    }
+
+    private void enterMethod(int formal, int formalAndLocal) {
+        Code.put(Code.enter);
+        Code.put(formal);
+        Code.put(formalAndLocal);
     }
 
     int getMainPc() {
@@ -54,9 +57,7 @@ public class CodeGenerator extends VisitorAdaptor {
 
         currentMethod = methodSignature.obj;
 
-        Code.put(Code.enter);
-        Code.put(formalCount.getCount());
-        Code.put(formalCount.getCount() + localVarCount.getCount() + 1);
+        enterMethod(formalCount.getCount(), formalCount.getCount() + localVarCount.getCount() + 1);
     }
 
     @Override
@@ -73,30 +74,36 @@ public class CodeGenerator extends VisitorAdaptor {
     }
 
     private boolean needsReturn() {
-        return currentMethod.getType() != Tab.noType;
+        return !TabAdapter.isNoType(currentMethod.getType());
     }
 
     private void checkRuntimeError() {
         if (!needsReturn() && hasReturn() || needsReturn() && !hasReturn()) {
-            Code.loadConst(1);
-            Code.put(Code.trap);
+            throwRuntimeError();
         }
         currentReturn = null;
         currentMethod = null;
     }
 
+    private void throwRuntimeError() {
+        Code.loadConst(1);
+        Code.put(Code.trap);
+    }
+
     @Override
     public void visit(StatementReturn statementReturn) {
-        Code.put(Code.exit);
-        Code.put(Code.return_);
-        currentReturn = null;
+        returnStatement(null);
     }
 
     @Override
     public void visit(StatementReturnExpr returnExpr) {
+        returnStatement(returnExpr.getExpr().obj);
+    }
+
+    private void returnStatement(Obj obj) {
         Code.put(Code.exit);
         Code.put(Code.return_);
-        currentReturn = returnExpr.getExpr().obj;
+        currentReturn = null;
     }
 
     @Override
@@ -129,7 +136,6 @@ public class CodeGenerator extends VisitorAdaptor {
         memoryExpr = null;
     }
 
-
     @Override
     public void visit(DesignatorStatementAssignOpExpr statementAssign) {
         if (statementAssign.getAssingOp().getClass() == AssignEqual.class) {
@@ -139,23 +145,24 @@ public class CodeGenerator extends VisitorAdaptor {
 
     @Override
     public void visit(DesignatorStatementIncrement increment) {
-        duplicateArray(increment.getDesignator());
-        Code.load(increment.getDesignator().obj);
-        Code.loadConst(1);
-        Code.put(Code.add);
-        Code.store(increment.getDesignator().obj);
+        postcrementDesignator(increment.getDesignator(), true);
     }
 
     @Override
     public void visit(DesignatorStatementDecrement decrement) {
-        duplicateArray(decrement.getDesignator());
-        Code.load(decrement.getDesignator().obj);
-        Code.loadConst(1);
-        Code.put(Code.sub);
-        Code.store(decrement.getDesignator().obj);
+        postcrementDesignator(decrement.getDesignator(), false);
     }
 
-    private void duplicateArray(Designator designator) {
+    private void postcrementDesignator(Designator designator, boolean isIncrement) {
+        int op = isIncrement? Code.add : Code.sub;
+        duplicate2IfArray(designator);
+        Code.load(designator.obj);
+        Code.loadConst(1);
+        Code.put(op);
+        Code.store(designator.obj);
+    }
+
+    private void duplicate2IfArray(Designator designator) {
         if (designator.getClass() == DesignatorArray.class) {
             Code.put(Code.dup2);
         }
@@ -173,14 +180,14 @@ public class CodeGenerator extends VisitorAdaptor {
     }
 
     Stack<Designator> designatorStack = new Stack<>(); // either normal or array
-    Stack<Expr> exprStack = new Stack<>(); // array index
+    Stack<Expr> exprStack = new Stack<>(); // array index or null
     Stack<Integer> combinedOpStack = new Stack<>(); // op
 
     @Override
     public void visit(LoadDesignator1 loadDesignator1) {
         if (memoryDesignator != null) {
             designatorStack.push(memoryDesignator);
-            if (memoryDesignator.obj.getType().getKind() != Struct.Array) {
+            if (!TabAdapter.isArrayType(memoryDesignator.obj.getType())) {
                 exprStack.push(null);
             } else {
                 exprStack.push(memoryExpr);
@@ -192,32 +199,27 @@ public class CodeGenerator extends VisitorAdaptor {
 
     @Override
     public void visit(AddopRightPlusEqual addopRight) {
-        int operationCode = Code.add;
-        combinedOpStack.push(operationCode);
+        combinedOpStack.push(Code.add);
     }
 
     @Override
     public void visit(AddopRightMinusEqual addopRight) {
-        int operationCode = Code.sub;
-        combinedOpStack.push(operationCode);
+        combinedOpStack.push(Code.sub);
     }
 
     @Override
     public void visit(MulopRightMulEqual mulopRight) {
-        int operationCode = Code.mul;
-        combinedOpStack.push(operationCode);
+        combinedOpStack.push(Code.mul);
     }
 
     @Override
     public void visit(MulopRightDivEqual mulopRight) {
-        int operationCode = Code.div;
-        combinedOpStack.push(operationCode);
+        combinedOpStack.push(Code.div);
     }
 
     @Override
     public void visit(MulopRightModEqual mulopRight) {
-        int operationCode = Code.rem;
-        combinedOpStack.push(operationCode);
+        combinedOpStack.push(Code.rem);
     }
 
     // there was a mistake in the text of the problem, this was necessary
@@ -232,7 +234,7 @@ public class CodeGenerator extends VisitorAdaptor {
             Expr expr = exprStack.pop();
             Integer op = combinedOpStack.pop();
             Code.load(designator.obj);
-            if (expr != null) {
+            if (expr != null) { // is array[i] ?
                 stack_swap();
                 Code.load(expr.obj);
                 stack_swap();
@@ -268,22 +270,14 @@ public class CodeGenerator extends VisitorAdaptor {
         }
     }
 
-    private int getMulOpRightCode(Mulop_MulopRight mulopLeft) {
-        if (mulopLeft.getMulopRight().getClass() == MulopRightMulEqual.class) {
-            return Code.mul;
-        } else if (mulopLeft.getMulopRight().getClass() == MulopRightDivEqual.class) {
-            return Code.div;
-        } else {
-            return Code.rem;
-        }
+    private void putAddopLeft(Addop_AddopLeft addop_addopLeft) {
+        int codeOp = getAddopLeft(addop_addopLeft);
+        Code.put(codeOp);
     }
 
-    private int getAddOpRightCode(Addop_AddopRight addopRight) {
-        if (addopRight.getAddopRight().getClass() == AddopRightPlusEqual.class) {
-            return Code.add;
-        }  else {
-            return Code.sub;
-        }
+    private void putMullopLeft(Mulop_MulopLeft mulopLeft) {
+        int codeOp = getMullopLeft(mulopLeft);
+        Code.put(codeOp);
     }
 
     private int getAddopLeft(Addop_AddopLeft addop_addopLeft) {
@@ -304,14 +298,22 @@ public class CodeGenerator extends VisitorAdaptor {
         }
     }
 
-    private void putAddopLeft(Addop_AddopLeft addop_addopLeft) {
-        int codeOp = getAddopLeft(addop_addopLeft);
-        Code.put(codeOp);
+    private int getMulOpRightCode(Mulop_MulopRight mulopLeft) {
+        if (mulopLeft.getMulopRight().getClass() == MulopRightMulEqual.class) {
+            return Code.mul;
+        } else if (mulopLeft.getMulopRight().getClass() == MulopRightDivEqual.class) {
+            return Code.div;
+        } else {
+            return Code.rem;
+        }
     }
 
-    private void putMullopLeft(Mulop_MulopLeft mulopLeft) {
-        int codeOp = getMullopLeft(mulopLeft);
-        Code.put(codeOp);
+    private int getAddOpRightCode(Addop_AddopRight addopRight) {
+        if (addopRight.getAddopRight().getClass() == AddopRightPlusEqual.class) {
+            return Code.add;
+        }  else {
+            return Code.sub;
+        }
     }
 
     @Override
@@ -329,12 +331,9 @@ public class CodeGenerator extends VisitorAdaptor {
 
     @Override
     public void visit(FactorNewTypeArray newTypeArray) {
-        Code.put(Code.newarray);
-        if (newTypeArray.obj.getType().getElemType() == Tab.charType) {
-            Code.put(0);
-        } else {
-            Code.put(1);
-        }
+        boolean isChar = TabAdapter.isCharType(newTypeArray.obj.getType().getElemType());
+        Obj expr = newTypeArray.getExpr().obj;
+        stack_create_array_given_size(expr, isChar);
     }
 
 
@@ -383,7 +382,7 @@ public class CodeGenerator extends VisitorAdaptor {
 
     @Override
     public void visit(OrKeyword orKeyword) {
-        // needs to jump to ifs statement if positive!  (double negative)
+        // needs to jump to ifs 1st statement if positive!  (double negative)
         //needs new stack for jump
         int op = relOpStack.pop();
         int positiveOp = Code.inverse[op];
@@ -505,6 +504,7 @@ public class CodeGenerator extends VisitorAdaptor {
 
     @Override
     public void visit(ForeachBegin foreachBegin) {
+        // todo : is this used?
     }
 
     @Override
@@ -542,6 +542,7 @@ public class CodeGenerator extends VisitorAdaptor {
     // FOR
 
     private final Stack<Integer> forJumpToEnd = new Stack<>();
+    private final Stack<Integer> forDesignatorJumpBackAdr = new Stack<>();
 
     @Override
     public void visit(ForStart forStart) {
@@ -549,14 +550,11 @@ public class CodeGenerator extends VisitorAdaptor {
         continueFixup.push(new ArrayList<>());
     }
 
-
-
     @Override
     public void visit(ForRepeatCondition topCondition) {
         int top = Code.pc;
         foreachAdrRepeatTop.push(top);
     }
-
 
     @Override
     public void visit(ForConditionEmpty conditionEmpty) {
@@ -567,8 +565,6 @@ public class CodeGenerator extends VisitorAdaptor {
         fixupPositiveAdrStack.peek().add(adr);
 
     }
-
-    private final Stack<Integer> forDesignatorJumpBackAdr = new Stack<>();
 
     @Override
     public void visit(DesignatorJumpBack designatorJumpBack) {
@@ -650,7 +646,7 @@ public class CodeGenerator extends VisitorAdaptor {
 
     @Override
     public void visit(StatementPrintExpr printExpr) {
-        if (printExpr.getExpr().obj.getType() == Tab.charType) {
+        if (TabAdapter.isCharType(printExpr.getExpr().obj.getType())) {
             Code.loadConst(1);
             Code.put(Code.bprint);
         } else {
@@ -662,7 +658,7 @@ public class CodeGenerator extends VisitorAdaptor {
     @Override
     public void visit(StatementPrintExprNumber printExpr) {
         Code.loadConst(printExpr.getN2());
-        if (printExpr.getExpr().obj.getType() == Tab.charType) {
+        if (TabAdapter.isCharType(printExpr.getExpr().obj.getType())) {
             Code.put(Code.bprint);
         } else {
             Code.put(Code.print);
@@ -672,7 +668,7 @@ public class CodeGenerator extends VisitorAdaptor {
     @Override
     public void visit(StatementRead statementRead) {
         Obj obj = statementRead.getDesignator().obj;
-        if (obj.getType().getKind() == Struct.Char) {
+        if (TabAdapter.isCharType(obj.getType())) {
             Code.put(Code.bread);
         } else {
             Code.put(Code.read);
@@ -694,6 +690,8 @@ public class CodeGenerator extends VisitorAdaptor {
 
 
     // STACK HELPERS
+    // Intentionally written in snake_case to be easier to notice and differentiate
+    // Should be used for quick modifications, eg. in exam
     // todo: Use them in the whole class
 
     private final Stack<Integer> stack_if_adr = new Stack<>();
@@ -741,13 +739,13 @@ public class CodeGenerator extends VisitorAdaptor {
         int cycle_fixup = stack_cycle_adr.pop();
         Code.putJump(cycle_fixup);
     }
-    private void stack_create_array_given_size(Obj size, boolean isInt) {
+    private void stack_create_array_given_size(Obj size, boolean isChar) {
         Code.load(size);
         Code.put(Code.newarray);
-        if (isInt) {
-            Code.put(1);
-        } else {
+        if (isChar) {
             Code.put(0);
+        } else {
+            Code.put(1);
         }
     }
 
@@ -764,6 +762,8 @@ public class CodeGenerator extends VisitorAdaptor {
         // <arg value="-debug"/>
     }
 
+
+    // Exam test1: Find the max in an array i think
     @Override
     public void visit(ExprMaxArray array) {
         Code.put(Code.pop);
@@ -808,6 +808,7 @@ public class CodeGenerator extends VisitorAdaptor {
         Code.put(Code.pop);
     }
 
+    // Exam test2: Find the number of occurrences in an array. Given the max
     @Override
     public void visit(ExprGetCounter getCounter) {
         Obj maxElement = getCounter.getTerm().obj;
@@ -815,7 +816,7 @@ public class CodeGenerator extends VisitorAdaptor {
         stack_clean_by(2); // []
 
         // creates an array
-        stack_create_array_given_size(maxElement, true);
+        stack_create_array_given_size(maxElement, false);
         // arr2
         Code.loadConst(0); // arr2, iter
         // iterate arr1, update iter
@@ -823,20 +824,19 @@ public class CodeGenerator extends VisitorAdaptor {
         Code.put(Code.dup); // arr2, iter, iter
         stack_array_length(array); // arr2, iter, iter, len1
         stack_if(Code.eq);
-        // arr2, iter
-        Code.put(Code.dup2); // arr2, iter, arr2, iter
-        Code.load(array); // arr2, iter, arr2, iter, arr1
-        stack_swap(); // arr2, iter, arr2, arr1, iter
-        Code.put(Code.aload); // arr2, iter, arr2, arr1[iter]
-        Code.put(Code.dup2); // arr2, iter, arr2, iter2, arr2, iter2
-        Code.put(Code.aload); // arr2, iter, arr2, iter2, arr2[iter2]
-        stack_increment();
-        Code.put(Code.astore);// arr2, iter,
+            // arr2, iter
+            Code.put(Code.dup2); // arr2, iter, arr2, iter
+            Code.load(array); // arr2, iter, arr2, iter, arr1
+            stack_swap(); // arr2, iter, arr2, arr1, iter
+            Code.put(Code.aload); // arr2, iter, arr2, arr1[iter]
+            Code.put(Code.dup2); // arr2, iter, arr2, iter2, arr2, iter2
+            Code.put(Code.aload); // arr2, iter, arr2, iter2, arr2[iter2]
+            stack_increment();
+            Code.put(Code.astore);// arr2, iter,
 
-        stack_increment(); // arr2, iter+1
+            stack_increment(); // arr2, iter+1
         stack_cycle_fixup();
         stack_if_fixup(); // jump out
         stack_clean_by(1); // arr2
     }
 }
-

@@ -119,7 +119,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
     public void visit(ConstVarAssing constAssign) {
         Struct type = currentType.getType();
         Struct typeOfConst = constAssign.getConstGroup().obj.getType();
-        if (isNotTypePrimitive(type) || isNotTypePrimitive(typeOfConst)) {
+        if (!TabAdapter.isPrimitiveType(type) || !TabAdapter.isPrimitiveType(typeOfConst)) {
             report_error("Const must be of type Int, Char or Bool", constAssign);
             constAssign.obj = Tab.noObj;
         }
@@ -131,11 +131,6 @@ public class SemanticAnalyzer extends VisitorAdaptor {
             constAssign.obj = TabAdapter.insert(Obj.Con, constAssign.getName(), type, constAssign.getLine());
             constAssign.obj.setAdr(constAssign.getConstGroup().obj.getAdr());
         }
-    }
-
-    private boolean isNotTypePrimitive(Struct struct) {
-        int type = struct.getKind();
-        return type != Struct.Int && type != Struct.Char && type != Struct.Bool;
     }
 
     @Override
@@ -155,7 +150,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
     }
 
     @Override
-    public void visit(TypeVoid typeVoid) { // todo: bice problem
+    public void visit(TypeVoid typeVoid) { // todo: could prove troublesome
         typeVoid.obj = Tab.noObj;
         currentType = Tab.noObj;
     }
@@ -188,7 +183,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
             } else {
                 hasMain = true;
             }
-            if (currentMethod.getType().getKind() != Struct.None) {
+            if (!TabAdapter.isNoneType(currentMethod.getType())) {
                 report_error("Main must be void", methodSignature);
             }
             if (paramList.size() > 0) {
@@ -292,9 +287,8 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 
     @Override
     public void visit(FactorFunCallPars funCall) {
-        if (funCall.getFunctionCall().obj.getType() == Tab.noType) {
+        if (TabAdapter.isNoType(funCall.getFunctionCall().obj.getType())) {
             report_error("Cannot use a Void function as a factor", funCall);
-
         }
         funCall.obj = funCall.getFunctionCall().obj;
     }
@@ -318,12 +312,11 @@ public class SemanticAnalyzer extends VisitorAdaptor {
     public void visit(DesignatorArray designatorArray) {
         Obj designator = designatorArray.getDesignatorArrayHelper().obj;
         Struct expr = designatorArray.getExpr().obj.getType();
-        if (designator.getType().getKind() != Struct.Array) {
+        if (!TabAdapter.isArrayType(designator.getType())) {
             report_error("Designator must be an Array type", designatorArray);
-
             designatorArray.obj = Tab.noObj;
         } else {
-            if (expr.getKind() != Struct.Int) {
+            if (!TabAdapter.isIntType(expr)) {
                 report_error("Expression must be of type Int", designatorArray);
             }
             designatorArray.obj = new Obj(Obj.Elem, designator.getName() + "_elem", designator.getType().getElemType());
@@ -333,7 +326,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
     @Override
     public void visit(FactorNewTypeArray newType) {
         Struct exprStruct = newType.getExpr().obj.getType();
-        if (!exprStruct.equals(Tab.intType)) {
+        if (!TabAdapter.isIntType(exprStruct)) {
             report_error("Array size must be of type Int", newType);
         }
         newType.obj = new Obj(Obj.Type, "arr", new Struct(Struct.Array, currentType.getType()));
@@ -383,7 +376,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 
     @Override
     public void visit(ExprTerm exprTerm) {
-        if (isNegative && exprTerm.getTerm().obj.getType().getKind() != Struct.Int) {
+        if (isNegative && !TabAdapter.isIntType(exprTerm.getTerm().obj.getType())) {
             report_error("Only Int can be negative", exprTerm);
         }
         exprTerm.obj = exprTerm.getTerm().obj;
@@ -392,10 +385,10 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 
     @Override
     public void visit(ExprTermAddOpTerm exprTerm) {
-        if (exprTerm.getExpr().obj.getType().getKind() != Struct.Int) {
+        if (!TabAdapter.isIntType(exprTerm.getExpr().obj.getType())) {
             report_error("First operand must be of type Int", exprTerm);
         }
-        if (exprTerm.getTerm().obj.getType().getKind() != Struct.Int) {
+        if (!TabAdapter.isIntType(exprTerm.getTerm().obj.getType())) {
             report_error("Second operand must be of type Int", exprTerm);
         }
         if (!exprTerm.getExpr().obj.getType().compatibleWith(exprTerm.getTerm().obj.getType())) {
@@ -415,10 +408,10 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 
     @Override
     public void visit(TermMulOpFactor termMulOpFactor) {
-        if (termMulOpFactor.getTerm().obj.getType().getKind() != Struct.Int) {
+        if (!TabAdapter.isIntType(termMulOpFactor.getTerm().obj.getType())) {
             report_error("First operand must be of type Int", termMulOpFactor);
         }
-        if (termMulOpFactor.getFactor().obj.getType().getKind() != Struct.Int) {
+        if (!TabAdapter.isIntType(termMulOpFactor.getFactor().obj.getType())) {
             report_error("Second operand must be of type Int", termMulOpFactor);
         }
         boolean op = stackOfCombinedOperations.pop();
@@ -473,7 +466,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 
     @Override
     public void visit(StatementReturnExpr returnExpr) {
-        if (currentMethod.getType().equals(Tab.noType)) {
+        if (TabAdapter.isNoType(currentMethod.getType())) {
             report_error("Function should return void", returnExpr);
         } else if (!currentMethod.getType().equals(returnExpr.getExpr().obj.getType())) {
             report_error("Return type must be equal to expected type", returnExpr);
@@ -487,7 +480,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
         if (isNotVarFldElem(designator)) {
             report_error("Read takes a Var, a Fld or an Elem", statementRead);
         }
-        if (isNotTypePrimitive(designator.getType())) {
+        if (!TabAdapter.isPrimitiveType(designator.getType())) {
             report_error("Designator must a primitive type: Int, Char or Bool", statementRead);
         }
     }
@@ -512,7 +505,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
                 for (int i = 0; i < paramsExpected.size(); i++) {
                     Struct expectedStruct = paramsExpected.get(i).getType();
                     Struct givenStruct = arguments.get(i);
-                    if ((isLen(funCall.getDesignator()) && givenStruct.getKind() ==  Struct.Array )) {
+                    if ((isLen(funCall.getDesignator()) && TabAdapter.isArrayType(givenStruct))) {
                         continue;
                     }
                     if ( !givenStruct.compatibleWith(expectedStruct)) {
@@ -529,10 +522,6 @@ public class SemanticAnalyzer extends VisitorAdaptor {
         return "len".equals(des.obj.getName());
     }
 
-    private boolean isStructType(Designator designator, int structType) {
-        return designator.obj.getType().getKind() == structType;
-    }
-
     @Override
     public void visit(ActParsStart actParsStart) {
         functionArguments.push(new ArrayList<>());
@@ -545,24 +534,22 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 
     @Override
     public void visit(ConditionFactExpr expr) {
-        int typeFirst = expr.getExpr().obj.getType().getKind();
-        if (typeFirst != Struct.Bool) {
+        Struct exprStruct = expr.getExpr().obj.getType();
+        if (!TabAdapter.isBoolType(exprStruct)) {
             report_error("Expresion must be a boolean", expr);
             expr.struct = TabAdapter.noType;
         } else {
-            expr.struct = expr.getExpr().obj.getType();
+            expr.struct = exprStruct;
         }
     }
 
 
     @Override
     public void visit(ConditionFactExprOpExpr exprOpExpr) {
-        int typeFirst = exprOpExpr.getExpr().obj.getType().getKind();
-        int typeSecond = exprOpExpr.getExpr1().obj.getType().getKind();
         Struct first = exprOpExpr.getExpr().obj.getType();
         Struct second = exprOpExpr.getExpr1().obj.getType();
 
-        if (typeFirst == Struct.None || typeSecond == Struct.None) {
+        if (TabAdapter.isNoneType(first) || TabAdapter.isNoneType(second)) {
             exprOpExpr.struct = TabAdapter.noType;
             return;
         }
@@ -570,7 +557,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
             report_error("Incompatible types", exprOpExpr);
             exprOpExpr.struct = TabAdapter.noType;
         } else {
-            if (typeFirst == Struct.Array && typeSecond == Struct.Array && !isEqNeq) {
+            if (TabAdapter.isArrayType(first) && TabAdapter.isArrayType(second) && !isEqNeq) {
                 report_error("Arrays can only be compared with '==' or '!='", exprOpExpr);
                 exprOpExpr.struct = TabAdapter.noType;
                 return;
@@ -663,7 +650,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
     public void visit(StatementForEach statementForEach) {
         Obj designator = statementForEach.getForeachArrayDesignator().obj;
         Obj ident = statementForEach.getForeachIterator().obj;
-        if (designator.getType().getKind() != Struct.Array) {
+        if (!TabAdapter.isArrayType(designator.getType())) {
             report_error("Designator must be of Array type", statementForEach);
         } else if (!ident.equals(Tab.noObj) && !designator.getType().getElemType().equals(ident.getType())) {
             report_error("Type mismatch: identifier and array", statementForEach);
@@ -679,7 +666,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
     @Override
     public void visit(StatementFor statementFor) {
         Struct condition = statementFor.getOptionalForCondition().struct;
-        if (condition.getKind() != Struct.Bool && !condition.equals(Tab.noType)) {
+        if (!TabAdapter.isBoolType(condition) && !TabAdapter.isNoType(condition)) {
             report_error("Bad condition ", statementFor);
         }
         loopLevel--;
@@ -698,7 +685,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
     }
 
     private void typeCheckStatementPrintStruct( Struct exprStruct, Expr expr) {
-        if (isNotTypePrimitive(exprStruct)) {
+        if (!TabAdapter.isPrimitiveType(exprStruct)) {
             report_error("Print takes primitive types: Int, Char or Bool", expr);
         }
     }
@@ -712,7 +699,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
     @Override
     public void visit(ForCondition forCondition) {
         Struct condition = forCondition.getCondition().struct;
-        if (condition.getKind() == Struct.Bool) {
+        if (TabAdapter.isBoolType(condition)) {
             forCondition.struct = forCondition.getCondition().struct;
             loopLevel++;
         } else {
@@ -792,7 +779,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
     public void visit(ExprMaxArray exprMaxArray) {
         // check if int array
 
-        if (exprMaxArray.getTerm().obj.getType().getKind() == Struct.Array && exprMaxArray.getTerm().obj.getType().getElemType().getKind() == Struct.Int) {
+        if (TabAdapter.isArrayType(exprMaxArray.getTerm().obj.getType()) && TabAdapter.isIntType(exprMaxArray.getTerm().obj.getType().getElemType())) {
             exprMaxArray.obj = new Obj(Obj.Var, "max_arr", Tab.intType);
         } else {
             report_error("Expression must be an array and of type int", exprMaxArray);

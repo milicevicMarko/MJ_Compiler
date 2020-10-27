@@ -41,6 +41,34 @@ public class TabAdapter extends Tab {
         }
     }
 
+    static boolean isCharType(Struct struct) {
+        return struct == TabAdapter.charType;
+    }
+
+    static boolean isIntType(Struct struct) {
+        return struct == TabAdapter.intType;
+    }
+
+    static boolean isBoolType(Struct struct) {
+        return struct == TabAdapter.booleanType;
+    }
+
+    static boolean isNoType(Struct struct) {
+        return struct == TabAdapter.noType;
+    }
+
+    static boolean isNoneType(Struct struct) {
+        return struct.getKind() == Struct.None;
+    }
+
+    static boolean isArrayType(Struct struct) {
+        return struct.getKind() == Struct.Array;
+    }
+
+    static boolean isPrimitiveType(Struct struct) {
+        return isBoolType(struct) || isIntType(struct) || isCharType(struct);
+    }
+
     static void printHandler(Obj node, int line) {
         if (node.getKind() == Obj.Var || node.getKind() == Obj.Con || node.getKind() == Obj.Elem || node.getKind() == Obj.Meth) {
             String objKind = getObjKind(node.getKind());
@@ -68,9 +96,6 @@ public class TabAdapter extends Tab {
     }
 
     public static Obj find(String name, int line) {
-//        if (name.equals("fun1")) {
-//            Thread.dumpStack();
-//        }
         Obj resultObj = Tab.find(name);
         if (resultObj == Tab.noObj) {
             TabAdapter.notFoundHandler(name, line);
