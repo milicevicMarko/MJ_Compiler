@@ -12,8 +12,7 @@ parser code {:
 	Logger log = Logger.getLogger(getClass());
 
 
-    // todo critical
-    // slede redefinisani metodi za prijavu gresaka radi izmene teksta poruke
+    // todo critical : delete unnecessary terminal/non terminals
 
     public void report_fatal_error(String message, Object info) throws java.lang.Exception {
       done_parsing();
@@ -21,18 +20,18 @@ parser code {:
     }
 
     public void syntax_error(Symbol cur_token) {
-        report_error("\nSintaksna greska", cur_token);
+        report_error("\nSyntax error", cur_token);
     }
 
     public void unrecovered_syntax_error(Symbol cur_token) throws java.lang.Exception {
-        report_fatal_error("Fatalna greska, parsiranje se ne moze nastaviti", cur_token);
+        report_fatal_error("\nFatal error, parsing aborted", cur_token);
     }
 
     public void report_error(String message, Object info) {
         errorDetected = true;
     	StringBuilder msg = new StringBuilder(message);
     	if (info instanceof Symbol)
-            msg.append (" na liniji ").append(((Symbol)info).left);
+            msg.append (" on line ").append(((Symbol)info).left);
         log.error(msg.toString());
     }
 
@@ -198,22 +197,6 @@ LocalVarDecl ::=(LocalVarDeclSinge) STRING:Var
                 error SEMI:l
                 {: parser.report_error("Lokalna promenljiva: Izvrsen oporavak do ; " + lleft, null); :}
                 ;
-// todo: untested
-//LocalVarDeclarations ::= (LocalVarDeclList) LocalVarList | (LocalVarDeclEmpty)  /* Epsilon */;
-//LocalVarList ::= (LocalVarListList) LocalVarList LocalvarListing | (LocalVarSingle) LocalvarListing ;
-//LocalvarListing ::= (LocalVarListingList) Type LocalVarDeclListing SEMI ;
-//LocalVarDeclListing ::= (LocalVarDeclListingList) LocalVarDeclListing COMMA LocalVarDecl | (LocalVarDeclListingSingle) LocalVarDecl;
-//LocalVarDecl ::=(LocalVarDeclSinge) STRING:Var
-//                |
-//                (LocalVarDeclArray) STRING:Var LSQUARE RSQUARE
-//                |
-//                error SEMI:l
-//                {: parser.report_error("Lokalna promenljiva: Izvrsen oporavak do ; " + lleft, null); :}
-//                ;
-
-// TODO: Class Body, errors
-ClassBody ::= (ClassBodyStatements) STRING | (ClassBodyEmpty) /* Epsilon */;
-
 
 StatementList ::= (StatementListing) StatementList Statement | (StatementEmpty) /* Epsilon */;
 
